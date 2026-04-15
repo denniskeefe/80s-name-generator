@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>80s VPS Name Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #0f0f1a;
+    --border: #1a1a2e;
+    --cyan: #00f5ff;
+    --pink: #ff006e;
+    --purple: #7b2fff;
+    --yellow: #ffe600;
+    --text: #e0e0f0;
+    --muted: #8a8aaa;
+    --grid: rgba(0, 245, 255, 0.04);
+  }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* Perspective grid floor */
+  .grid-bg {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 45vh;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .grid-bg svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 500px; height: 500px; background: var(--purple); top: -150px; left: -150px; }
+  .orb-2 { width: 400px; height: 400px; background: var(--pink); top: -100px; right: -100px; }
+  .orb-3 { width: 300px; height: 300px; background: var(--cyan); bottom: 100px; left: 50%; transform: translateX(-50%); opacity: 0.1; }
+
+  .container {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 680px;
+    text-align: center;
+  }
+
+  /* Header */
+  .header { margin-bottom: 2.5rem; }
+
+  .sun {
+    width: 90px;
+    height: 45px;
+    background: linear-gradient(to bottom, var(--yellow) 0%, var(--pink) 100%);
+    border-radius: 90px 90px 0 0;
+    margin: 0 auto 1.2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .sun::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 100%;
+    background: repeating-linear-gradient(
+      transparent,
+      transparent 4px,
+      var(--bg) 4px,
+      var(--bg) 7px
+    );
+  }
+
+  .title {
+    font-family: 'VT323', monospace;
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    line-height: 1;
+    color: var(--cyan);
+    text-shadow: 0 0 20px rgba(0, 245, 255, 0.5), 0 0 40px rgba(0, 245, 255, 0.2);
+    letter-spacing: 0.04em;
+    margin-bottom: 0.3rem;
+  }
+
+  .subtitle {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+  }
+
+  /* Name display */
+  .name-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--cyan);
+    border-radius: 4px;
+    padding: 2rem 1.5rem 1.5rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .name-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,245,255,0.03) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .name-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  .name-output {
+    font-family: 'VT323', monospace;
+    font-size: clamp(2.2rem, 8vw, 3.8rem);
+    color: var(--yellow);
+    text-shadow: 0 0 15px rgba(255, 230, 0, 0.4);
+    min-height: 1.2em;
+    letter-spacing: 0.05em;
+    transition: opacity 0.1s;
+    word-break: break-all;
+  }
+
+  .name-output.placeholder { color: var(--muted); font-size: 1.4rem; padding-top: 0.5rem; text-shadow: none; }
+
+  .tagline {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 0.9rem;
+    min-height: 1.1em;
+    font-style: italic;
+    letter-spacing: 0.05em;
+  }
+
+  .badges {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 0.9rem;
+    flex-wrap: wrap;
+    min-height: 24px;
+  }
+
+  .badge {
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 2px;
+    border: 1px solid;
+  }
+  .badge-movie { color: var(--purple); border-color: var(--purple); background: rgba(123,47,255,0.1); }
+  .badge-band  { color: var(--cyan);   border-color: var(--cyan);   background: rgba(0,245,255,0.07); }
+  .badge-classic { color: var(--pink); border-color: var(--pink); background: rgba(255,0,110,0.08); }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 10px 22px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all 0.15s;
+    background: transparent;
+  }
+
+  .btn-primary {
+    color: var(--bg);
+    background: var(--cyan);
+    border-color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,245,255,0.3);
+  }
+  .btn-primary:hover { background: #00dde8; box-shadow: 0 0 28px rgba(0,245,255,0.5); transform: translateY(-1px); }
+  .btn-primary:active { transform: scale(0.97); }
+
+  .btn-secondary {
+    color: var(--cyan);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--cyan); background: rgba(0,245,255,0.06); }
+
+  .btn-ghost {
+    color: var(--muted);
+    border-color: transparent;
+    font-size: 0.68rem;
+  }
+  .btn-ghost:hover { color: var(--text); }
+
+  /* History */
+  .history-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .history-header {
+    padding: 0.6rem 1rem;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-item:hover { background: rgba(255,255,255,0.02); }
+
+  .history-name { font-family: 'VT323', monospace; font-size: 1.1rem; letter-spacing: 0.05em; color: var(--yellow); }
+
+  .history-copy {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .history-copy:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  /* Footer */
+  .footer {
+    margin-top: 2.5rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* Flicker animation */
+  @keyframes flicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.85; }
+    97% { opacity: 1; }
+    98% { opacity: 0.9; }
+    99% { opacity: 1; }
+  }
+  .title { animation: flicker 8s infinite; }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; } 50% { opacity: 0; }
+  }
+  .cursor::after {
+    content: '_';
+    animation: blink 1s step-end infinite;
+    color: var(--cyan);
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="grid-bg">
+  <svg viewBox="0 0 800 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#00f5ff" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="#00f5ff" stop-opacity="0.05"/>
+      </linearGradient>
+    </defs>
+    <!-- Horizontal lines -->
+    <line x1="0" y1="10"  x2="800" y2="10"  stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="0" y1="30"  x2="800" y2="30"  stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="0" y1="58"  x2="800" y2="58"  stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="0" y1="96"  x2="800" y2="96"  stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="0" y1="145" x2="800" y2="145" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="0" y1="208" x2="800" y2="208" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="0" y1="290" x2="800" y2="290" stroke="url(#fade)" stroke-width="0.5"/>
+    <!-- Vertical perspective lines converging to center -->
+    <line x1="400" y1="0" x2="0"   y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="100" y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="200" y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="300" y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="400" y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="500" y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="600" y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="700" y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="800" y2="300" stroke="url(#fade)" stroke-width="0.5"/>
+  </svg>
+</div>
+
+<div class="container">
+  <div class="header">
+    <div class="sun"></div>
+    <div class="title">VPS NAME GEN</div>
+    <div class="subtitle">80s Edition &mdash; Totally Rad Hostnames</div>
+  </div>
+
+  <div class="name-card">
+    <div class="name-label">// generated hostname</div>
+    <div class="name-output placeholder cursor" id="nameOutput">press generate</div>
+    <div class="tagline" id="tagline"></div>
+    <div class="badges" id="badges"></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="generate()">[ Generate ]</button>
+    <button class="btn btn-secondary" onclick="copyName()" id="copyBtn">[ Copy ]</button>
+    <button class="btn btn-ghost" onclick="clearHistory()">Clear history</button>
+  </div>
+
+  <div class="history-section" id="historySection">
+    <div class="history-header">// recent hostnames</div>
+    <div id="historyItems"></div>
+  </div>
+
+  <div class="footer">* names may cause nostalgia &nbsp;&bull;&nbsp; uptime not guaranteed &nbsp;&bull;&nbsp; rad since 1984 *</div>
+</div>
+
+<script>
+const words = [
+  {w:"Turbo",t:"classic"},{w:"Neon",t:"classic"},{w:"Laser",t:"classic"},{w:"Cobra",t:"classic"},
+  {w:"Thunder",t:"classic"},{w:"Maverick",t:"classic"},{w:"Nitro",t:"classic"},{w:"Blaze",t:"classic"},
+  {w:"Radical",t:"classic"},{w:"Bodacious",t:"classic"},{w:"Gnarly",t:"classic"},{w:"Stellar",t:"classic"},
+  {w:"Cosmic",t:"classic"},{w:"Atomic",t:"classic"},{w:"Hyper",t:"classic"},{w:"Wicked",t:"classic"},
+  {w:"Chrome",t:"classic"},{w:"Synth",t:"classic"},{w:"Cyber",t:"classic"},{w:"Electric",t:"classic"},
+  {w:"Phantom",t:"classic"},{w:"Shadow",t:"classic"},{w:"Steel",t:"classic"},{w:"Nova",t:"classic"},
+  {w:"Titan",t:"classic"},{w:"Rad",t:"classic"},{w:"Comet",t:"classic"},{w:"Dynamo",t:"classic"},
+  {w:"Voltage",t:"classic"},{w:"Vortex",t:"classic"},{w:"Arcade",t:"classic"},{w:"Pixel",t:"classic"},
+  {w:"Ferris",t:"movie"},{w:"Ghostbuster",t:"movie"},{w:"Terminator",t:"movie"},
+  {w:"Predator",t:"movie"},{w:"Robocop",t:"movie"},{w:"Beetlejuice",t:"movie"},{w:"Gremlins",t:"movie"},
+  {w:"Highlander",t:"movie"},{w:"Labyrinth",t:"movie"},{w:"Tron",t:"movie"},{w:"Karate",t:"movie"},
+  {w:"Risky",t:"movie"},{w:"Scarface",t:"movie"},{w:"Flashdance",t:"movie"},{w:"Outsider",t:"movie"},
+  {w:"Heathers",t:"movie"},{w:"Platoon",t:"movie"},
+  {w:"Jedi",t:"movie"},{w:"Gordie",t:"movie"},{w:"Goonie",t:"movie"},
+  {w:"Wargames",t:"movie"},{w:"Falken",t:"movie"},{w:"Spook",t:"movie"},{w:"Fletch",t:"movie"},
+  {w:"Marty",t:"movie"},{w:"Delorean",t:"movie"},{w:"Bender",t:"movie"},{w:"Allison",t:"movie"},
+  {w:"McClane",t:"movie"},{w:"Indy",t:"movie"},{w:"Raiders",t:"movie"},{w:"Elliot",t:"movie"},
+  {w:"Motley",t:"band"},{w:"Ratt",t:"band"},{w:"Dokken",t:"band"},{w:"Wham",t:"band"},
+  {w:"Bananarama",t:"band"},{w:"Devo",t:"band"},{w:"Blondie",t:"band"},{w:"Poison",t:"band"},
+  {w:"Cinderella",t:"band"},{w:"Warrant",t:"band"},{w:"Depeche",t:"band"},{w:"Kraftwerk",t:"band"},
+  {w:"Erasure",t:"band"},{w:"Roxette",t:"band"},{w:"Eurythmics",t:"band"},{w:"Scandal",t:"band"},
+  {w:"Guns",t:"band"},{w:"Midnight",t:"band"},{w:"Run",t:"band"},
+  {w:"Journey",t:"band"},{w:"Faithfully",t:"band"},{w:"Schon",t:"band"},
+  {w:"Freddie",t:"band"},{w:"Bohemian",t:"band"},{w:"Queenie",t:"band"},
+  {w:"Foreigner",t:"band"},{w:"Mick",t:"band"},{w:"Bono",t:"band"},{w:"Achtung",t:"band"},
+  {w:"Gibbons",t:"band"},{w:"Dusty",t:"band"},{w:"Sharpdressed",t:"band"},
+  {w:"Aerosmith",t:"band"},{w:"Tyler",t:"band"},{w:"Perry",t:"band"},
+  {w:"Simple",t:"band"},{w:"Kerr",t:"band"},{w:"Cheap",t:"band"},{w:"Nielsen",t:"band"},
+  {w:"Tribe",t:"band"},{w:"Phife",t:"band"},{w:"Quest",t:"band"},{w:"Atcq",t:"band"},
+];
+
+const nouns = [
+  {w:"Hawk",t:"classic"},{w:"Wolf",t:"classic"},{w:"Eagle",t:"classic"},{w:"Rider",t:"classic"},
+  {w:"Blazer",t:"classic"},{w:"Crusher",t:"classic"},{w:"Runner",t:"classic"},{w:"Hunter",t:"classic"},
+  {w:"Ranger",t:"classic"},{w:"Warrior",t:"classic"},{w:"Knight",t:"classic"},{w:"Striker",t:"classic"},
+  {w:"Bandit",t:"classic"},{w:"Outlaw",t:"classic"},{w:"Stallion",t:"classic"},{w:"Condor",t:"classic"},
+  {w:"Panther",t:"classic"},{w:"Raven",t:"classic"},{w:"Dragon",t:"classic"},{w:"Rocker",t:"classic"},
+  {w:"Ace",t:"classic"},{w:"Rex",t:"classic"},{w:"Commander",t:"classic"},
+  {w:"Zapper",t:"classic"},{w:"Shredder",t:"classic"},{w:"Blaster",t:"classic"},{w:"Glider",t:"classic"},
+  {w:"Drifter",t:"classic"},{w:"DeLorean",t:"classic"},
+  {w:"Bueller",t:"movie"},{w:"Skywalker",t:"movie"},{w:"MacGyver",t:"movie"},{w:"Magnum",t:"movie"},
+  {w:"Rambo",t:"movie"},{w:"Connor",t:"movie"},{w:"Sloane",t:"movie"},{w:"Gremlin",t:"movie"},
+  {w:"Chunk",t:"movie"},{w:"Ponyboy",t:"movie"},{w:"Riggs",t:"movie"},{w:"Murtaugh",t:"movie"},
+  {w:"Venkman",t:"movie"},{w:"Stantz",t:"movie"},{w:"Spengler",t:"movie"},{w:"Zeddemore",t:"movie"},
+  {w:"Optimus",t:"movie"},{w:"Megatron",t:"movie"},
+  {w:"Vader",t:"movie"},{w:"Solo",t:"movie"},{w:"Leia",t:"movie"},{w:"Kenobi",t:"movie"},
+  {w:"Yoda",t:"movie"},{w:"Chewbacca",t:"movie"},{w:"Falcon",t:"movie"},{w:"Dagobah",t:"movie"},
+  {w:"Gordie",t:"movie"},{w:"Chambers",t:"movie"},{w:"Teddy",t:"movie"},{w:"Duchamp",t:"movie"},
+  {w:"Mikey",t:"movie"},{w:"Sloth",t:"movie"},{w:"Fratelli",t:"movie"},{w:"Truffle",t:"movie"},
+  {w:"WOPR",t:"movie"},{w:"Joshua",t:"movie"},{w:"Lightman",t:"movie"},
+  {w:"Emmett",t:"movie"},{w:"Farnsworth",t:"movie"},
+  {w:"Fletch",t:"movie"},{w:"Irwin",t:"movie"},{w:"Underhill",t:"movie"},{w:"Chevy",t:"movie"},
+  // Back to the Future
+  {w:"McFly",t:"movie"},{w:"Brown",t:"movie"},{w:"Biff",t:"movie"},{w:"Clocktower",t:"movie"},{w:"Flux",t:"movie"},
+  // ET
+  {w:"Elliott",t:"movie"},{w:"Gertie",t:"movie"},{w:"Reese",t:"movie"},{w:"Phoning",t:"movie"},
+  // The Breakfast Club
+  {w:"Vernon",t:"movie"},{w:"Bender",t:"movie"},{w:"Claire",t:"movie"},{w:"Andrew",t:"movie"},{w:"Allison",t:"movie"},
+  // Die Hard
+  {w:"McClane",t:"movie"},{w:"Nakatomi",t:"movie"},{w:"Gruber",t:"movie"},{w:"Dwayne",t:"movie"},
+  // Raiders of the Lost Ark
+  {w:"Jones",t:"movie"},{w:"Indy",t:"movie"},{w:"Marian",t:"movie"},{w:"Ark",t:"movie"},{w:"Belloq",t:"movie"},
+  {w:"Crue",t:"band"},{w:"Mode",t:"band"},{w:"Maiden",t:"band"},{w:"Slayer",t:"band"},
+  {w:"Springfield",t:"band"},{w:"Lauper",t:"band"},{w:"Jagger",t:"band"},{w:"Bowie",t:"band"},
+  {w:"Prince",t:"band"},{w:"Madonna",t:"band"},{w:"Springsteen",t:"band"},{w:"Mercury",t:"band"},
+  {w:"Idol",t:"band"},{w:"Benatar",t:"band"},{w:"Jovi",t:"band"},{w:"Sambora",t:"band"},
+  {w:"Roses",t:"band"},{w:"Axl",t:"band"},{w:"Slash",t:"band"},
+  {w:"DMC",t:"band"},{w:"Darryl",t:"band"},{w:"Jam",t:"band"},
+  {w:"Nite",t:"band"},{w:"Synthwave",t:"band"},
+  // Journey
+  {w:"Perry",t:"band"},{w:"Escape",t:"band"},{w:"Arrival",t:"band"},
+  // Queen
+  {w:"Mercury",t:"band"},{w:"Rhapsody",t:"band"},{w:"Champion",t:"band"},
+  // Foreigner
+  {w:"Foreigner",t:"band"},{w:"Coldblood",t:"band"},
+  // U2
+  {w:"Bono",t:"band"},{w:"Edge",t:"band"},{w:"Sunday",t:"band"},
+  // ZZ Top
+  {w:"Beard",t:"band"},{w:"Eliminator",t:"band"},{w:"Gimme",t:"band"},
+  // Aerosmith
+  {w:"Dream",t:"band"},{w:"Rocks",t:"band"},{w:"Nine",t:"band"},
+  // Simple Minds
+  {w:"Minds",t:"band"},{w:"Alive",t:"band"},
+  // Cheap Trick
+  {w:"Trick",t:"band"},{w:"Budokan",t:"band"},
+  // A Tribe Called Quest
+  {w:"Jarobi",t:"band"},{w:"Consequence",t:"band"},{w:"Midnight",t:"band"},{w:"Marauder",t:"band"},
+];
+
+const taglines = [
+  "Totally tubular server name, dude.",
+  "Like, this name is SO rad.",
+  "Your server just got a jheri curl.",
+  "Gag me with a spoon — that name rules.",
+  "This server is bodacious beyond belief.",
+  "Straight outta the arcade, circa 1984.",
+  "Your sysadmin will be stoked.",
+  "Fer sure this is a killer hostname.",
+  "As if you'd name it anything else.",
+  "This name belongs on a Trapper Keeper.",
+  "Where we're going, we don't need DNS.",
+  "Be excellent to each other — and this server.",
+  "Most triumphant server name, Bill & Ted approved.",
+  "Your 300 baud modem can't handle this much cool.",
+  "Rewind the VHS — this name needs a sequel.",
+  "This server shreds harder than Eddie Van Halen.",
+  "It's alive! (The server, not the Gremlins.)",
+  "Nobody puts this server in a corner.",
+  "I'll be back — to SSH into this box.",
+  "Don't you forget about this server name.",
+  "Welcome to the jungle — population: this VPS.",
+  "My Adidas run faster than this server's ping.",
+  "Caught between the Midnight and the neon glow.",
+  "Paradise City, where the uptime is green.",
+  "It's tricky to rock a server, to rock a server.",
+  "May the uptime be with you.",
+  "Use the SSH, Luke.",
+  "These aren't the packets you're looking for.",
+  "Never tell me the odds — or the latency.",
+  "Goonies never say die — and neither does this server.",
+  "Shall we play a game? How about Global Thermonuclear Ping?",
+  "The only winning move is not to reboot.",
+  "Stand by me, stand by this server.",
+  "I am not really a doctor, but I do run Linux.",
+  "Roads? Where we're going, we don't need roads — just SSH.",
+  "1.21 gigawatts of pure hostname power.",
+  "He's been good this whole deployment. Phone home.",
+  "Does Barry Manilow know you raid his wardrobe — and his VPS?",
+  "Don't mess with this server. It's got a machine gun. Ho ho ho.",
+  "Snakes. Why did it have to be snakes in the server room?",
+  "It belongs in a museum — and so does this hostname.",
+  "Don't stop believin' — your server will stay up.",
+  "We are the champions — of rad VPS names.",
+  "I want to break free — from boring hostnames.",
+  "I still haven't found what I'm looking for — but this name is close.",
+  "Every little thing she does is magic — like this uptime.",
+  "Sharp dressed server. Every packet in place.",
+  "Dream on — your VPS never sleeps.",
+  "Don't you forget about me — or this hostname.",
+  "I want you to want me — to name my server this.",
+  "Cold as ice, hot as this CPU.",
+  "Can I kick it? Yes you can — and deploy to this server.",
+];
+
+const badgeLabel = { movie:"movie ref", band:"band ref", classic:"80s classic" };
+const badgeClass = { movie:"badge badge-movie", band:"badge badge-band", classic:"badge badge-classic" };
+
+let history = [];
+let current = "";
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function generate() {
+  const a = pick(words);
+  const n = pick(nouns);
+  current = `${a.w}-${n.w}`;
+  const types = [...new Set([a.t, n.t])];
+
+  const el = document.getElementById("nameOutput");
+  el.classList.remove("placeholder");
+  el.classList.add("cursor");
+  el.textContent = current;
+
+  document.getElementById("tagline").textContent = pick(taglines);
+  document.getElementById("copyBtn").textContent = "[ Copy ]";
+  document.getElementById("badges").innerHTML = types.map(t =>
+    `<span class="${badgeClass[t]}">${badgeLabel[t]}</span>`
+  ).join("");
+
+  if (!history.find(h => h.name === current)) {
+    history.unshift({ name: current, types });
+    if (history.length > 8) history.pop();
+    renderHistory();
+  }
+}
+
+function copyName() {
+  if (!current) return;
+  navigator.clipboard.writeText(current).then(() => {
+    document.getElementById("copyBtn").textContent = "[ Copied! ]";
+    setTimeout(() => { document.getElementById("copyBtn").textContent = "[ Copy ]"; }, 1500);
+  });
+}
+
+function copyHistoryItem(name, btn) {
+  navigator.clipboard.writeText(name).then(() => {
+    btn.textContent = "copied!";
+    setTimeout(() => { btn.textContent = "copy"; }, 1500);
+  });
+}
+
+function clearHistory() {
+  history = [];
+  renderHistory();
+}
+
+function renderHistory() {
+  const section = document.getElementById("historySection");
+  const container = document.getElementById("historyItems");
+  if (history.length === 0) { section.style.display = "none"; return; }
+  section.style.display = "block";
+  container.innerHTML = history.map(h =>
+    `<div class="history-item">
+      <span class="history-name">${h.name}</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        ${h.types.map(t => `<span class="badge ${badgeClass[t].split(' ')[1]}" style="font-size:0.55rem;">${badgeLabel[t]}</span>`).join("")}
+        <button class="history-copy" onclick="copyHistoryItem('${h.name}', this)">copy</button>
+      </div>
+    </div>`
+  ).join("");
+}
+</script>
+</body>
+</html>
